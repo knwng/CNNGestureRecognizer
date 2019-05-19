@@ -27,8 +27,8 @@ else:
 	I didnt spend much time on this behavior, but if someone has answer to this then please do comment and let me know.
     ValueError: Negative dimension size caused by subtracting 3 from 1 for 'conv2d_1/convolution' (op: 'Conv2D') with input shapes: [?,1,200,200], [3,3,200,32].
 '''
-# K.set_image_dim_ordering('th')
-K.set_image_dim_ordering('tf')  # channels_last
+K.set_image_dim_ordering('th')
+# K.set_image_dim_ordering('tf')  # channels_last
 
 import numpy as np
 #import matplotlib.pyplot as plt
@@ -46,14 +46,12 @@ import matplotlib
 from matplotlib import pyplot as plt
 
 # input image dimensions
-samples_per_class = 400
-# img_rows, img_cols = 200, 200
-img_rows, img_cols = 224, 224
+img_rows, img_cols = 200, 200
+# img_rows, img_cols = 224, 224
 
 # number of channels
 # For grayscale use 1 value and for color images use 3 (R,G,B channels)
-# img_channels = 1
-img_channels = 3
+img_channels = 1
 
 # Batch_size to train
 batch_size = 32
@@ -80,14 +78,14 @@ WeightFileName = ["ori_4015imgs_weights.hdf5","bw_4015imgs_weights.hdf5","bw_251
 
 # outputs
 # output = ["OK", "NOTHING","PEACE", "PUNCH", "STOP"]
-class_labels = ["one_left", "two_left", "three_left", "four_left", "five_left", "ok_left", "fist_left", \
-          "one_right", "two_right", "three_right", "four_right", "five_right", "ok_right", "fist_right", \
-          "nothing"]
+output = ["ONE_LEFT", "TWO_LEFT", "THREE_LEFT", "FOUR_LEFT", "FIVE_LEFT", "OK_LEFT", "FIST_LEFT", \
+          "ONE_RIGHT", "TWO_RIGHT", "THREE_RIGHT", "FOUR_RIGHT", "FIVE_RIGHT", "OK_RIGHT", "FIST_RIGHT", \
+          "NOTHING"]
 
 ## Number of output classes (change it accordingly)
 ## eg: In my case I wanted to predict 4 types of gestures (Ok, Peace, Punch, Stop)
 ## NOTE: If you change this then dont forget to change Labels accordingly
-nb_classes = len(class_labels)
+nb_classes = len(output)
 
 jsonarray = {}
 
@@ -144,17 +142,74 @@ def residual_block(block_input, output_channel=64, kernel_size=(3, 3)):
 # Load CNN model
 def loadCNN(wf_index):
     global get_output
-    # mobilenet_output = MobileNetV2(input_shape=(img_channels, img_rows, img_cols), include_top=False, weights='imagenet', pooling='avg')
-    model_input = Input(shape=(img_rows, img_cols, img_channels))
-    # mobilenet_output = MobileNetV2(input_shape=(img_rows, img_cols, img_channels), include_top=False, weights='imagenet', pooling='avg')
-    # mobilenet_output = MobileNetV2(input_shape=(img_rows, img_cols, img_channels), input_tensor=model_input, include_top=False, weights='imagenet', pooling='avg')
-    mobilenet_output = MobileNetV2(input_tensor=model_input, include_top=False, weights='imagenet', pooling='avg')
-    print('mobilenet lastlayer output: {}'.format(mobilenet_output.layers[-1].output))
-    output = Dense(nb_classes, activation='softmax')(mobilenet_output.layers[-1].output)
+    model_input = Input(shape=(img_channels, img_rows, img_cols))
+    conv_1 = Conv2D(64, (3, 3), padding='valid', activation='relu')(model_input)
+    max_pool_1 = MaxPooling2D(pool_size=(2, 2))(conv_1)
+    conv_1_1 = Conv2D(64, (3, 3), padding='valid', activation='relu')(max_pool_1)
+    max_pool_1_1 = MaxPooling2D(pool_size=(2, 2))(conv_1_1)
+    # residual block
+    res_1 = residual_block(max_pool_1_1)
+    conv_2 = Conv2D(128, (3, 3), activation='relu')(res_1)
+    max_pool_2 = MaxPooling2D(pool_size=(2, 2))(conv_2)
+    res_2 = residual_block(conv_2, output_channel=128)
+    conv_3 = Conv2D(256, (3, 3), activation='relu')(res_2)
+    max_pool_3 = MaxPooling2D(pool_size=(2, 2))(conv_3)
+    conv_4 = Conv2D(256, (3, 3), activation='relu')(max_pool_3)
+    # maxpool = MaxPooling2D(pool_size=(nb_pool, nb_pool))(conv_2)
+    global_avg_pool = GlobalAveragePooling2D()(conv_4)
+    # dropout_1 = Dropout(0.5)(maxpool)
+    # flatten_output = Flatten()(dropout_1)
+    # dense_1 = Dense(128, activation='relu')(global_avg_pool)
+    # dropout_2 = Dropout(0.5)(dense_1)
+    output = Dense(nb_classes, activation='softmax')(global_avg_pool)
 
+    '''
+    # model.add(Conv2D(nb_filters, (nb_conv, nb_conv)))
+    # convout2 = Activation('relu')
+    # model.add(convout2)
+    # model.add(MaxPooling2D(pool_size=(nb_pool, nb_pool)))
+    # model.add(Dropout(0.5))
+
+    # model.add(Flatten())
+    # model.add(Dense(128))
+    # model.add(Activation('relu'))
+    # model.add(Dropout(0.5))
+    # model.add(Dense(nb_classes))
+    # model.add(Activation('softmax'))
+    
+    # model.add(ZeroPadding2D((1,1),input_shape=(img_channels, img_rows, img_cols)))
+    # model.add(Conv2D(nb_filters , (nb_conv, nb_conv), activation='relu'))
+    # #model.add(ZeroPadding2D((1,1)))
+    # #model.add(Conv2D(nb_filters , (nb_conv, nb_conv), activation='relu'))
+    # model.add(MaxPooling2D(pool_size=(nb_pool, nb_pool)))
+    # model.add(Dropout(0.2))
+    # 
+    # #model.add(ZeroPadding2D((1,1)))
+    # model.add(Conv2D(nb_filters , (nb_conv, nb_conv), activation='relu'))
+    # #model.add(ZeroPadding2D((1,1)))
+    # model.add(MaxPooling2D(pool_size=(nb_pool, nb_pool)))
+    # ##
+    # #model.add(Conv2D(nb_filters , (nb_conv, nb_conv), activation='relu'))
+    # #model.add(MaxPooling2D(pool_size=(nb_pool, nb_pool), strides=(2,2)))
+    # 
+    # model.add(Dropout(0.3))
+    # model.add(Flatten())
+    # ###
+    # #model.add(Dense(128))
+    # #model.add(Activation('relu'))
+    # #model.add(Dropout(0.5))
+
+    # model.add(Dense(256))
+    # model.add(Activation('relu'))
+    # model.add(Dropout(0.5))
+    # model.add(Dense(nb_classes))
+    # model.add(Activation('softmax'))
+    '''
+    
     #sgd = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
     model = Model(inputs=model_input, outputs=output)
     model.compile(loss='categorical_crossentropy', optimizer='adadelta', metrics=['accuracy'])
+    
     
     # Model summary
     model.summary()
@@ -205,7 +260,7 @@ def guessGesture(model, img):
     
     d = {}
     i = 0
-    for items in class_labels:
+    for items in output:
         d[items] = prob_array[0][i] * 100
         i += 1
     
@@ -226,27 +281,25 @@ def guessGesture(model, img):
         #    json.dump(d, outfile)
         jsonarray = d
                 
-        return class_labels.index(guess)
+        return output.index(guess)
 
     else:
         return 1
 
 #%%
 def initializers():
-    # imlist = modlistdir(path2)
-    imlist = ['{}{}.png'.format(lb, idx) for lb in class_labels for idx in range(samples_per_class)]
-    print('imlist: {}'.format(imlist))
+    imlist = modlistdir(path2)
     
-    image1 = np.array(Image.open(os.path.join(path2, imlist[0]))) # open one image to get size
+    image1 = np.array(Image.open(path2 +'/' + imlist[0])) # open one image to get size
+    #plt.imshow(im1)
     
     m, n = image1.shape[0:2] # get the size of the images
     total_images = len(imlist) # get the 'total' number of images
-    # class_labels
     
     # create matrix to store all flattened images
-    # immatrix = np.array([np.array(Image.open(path2+ '/' + images).convert('L')).flatten()
-    # immatrix = np.array([np.array(Image.open(os.path.join(path2, images)).convert('RGB')).flatten() for images in sorted(imlist)], dtype='f')
-    immatrix = np.array([np.array(Image.open(os.path.join(path2, images)).convert('RGB').resize((img_rows, img_cols))).flatten() for images in imlist], dtype='f')
+    # immatrix = np.array([np.array(Image.open(path2+ '/' + images).convert('RGB')).flatten()
+    immatrix = np.array([np.array(Image.open(path2+ '/' + images).convert('L')).flatten()
+                         for images in sorted(imlist)], dtype='f')
     
     print(immatrix.shape)
     
@@ -255,13 +308,13 @@ def initializers():
     #########################################################
     ## Label the set of images per respective gesture type.
     ##
-    label = np.ones((total_images,), dtype=int)
+    label=np.ones((total_images,), dtype=int)
     
-    # samples_per_class = int(total_images / nb_classes)
+    samples_per_class = int(total_images / nb_classes)
     print("samples_per_class - ", samples_per_class)
     s = 0
     r = int(samples_per_class)
-    for classIndex in range(len(class_labels)):
+    for classIndex in range(nb_classes):
         label[s:r] = classIndex
         s = r
         r = s + samples_per_class
@@ -274,19 +327,17 @@ def initializers():
     label[903:]=3
     '''
     
-    data, Label = shuffle(immatrix, label, random_state=2)
-    train_data = [data, Label]
+    data,Label = shuffle(immatrix,label, random_state=2)
+    train_data = [data,Label]
      
-    (X, y) = (train_data[0], train_data[1])
+    (X, y) = (train_data[0],train_data[1])
      
     # Split X and y into training and testing sets
      
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=4)
      
-    # X_train = X_train.reshape(X_train.shape[0], img_channels, img_rows, img_cols)
-    # X_test = X_test.reshape(X_test.shape[0], img_channels, img_rows, img_cols)
-    X_train = X_train.reshape(X_train.shape[0], img_rows, img_cols, img_channels)
-    X_test = X_test.reshape(X_test.shape[0], img_rows, img_cols, img_channels)
+    X_train = X_train.reshape(X_train.shape[0], img_channels, img_rows, img_cols)
+    X_test = X_test.reshape(X_test.shape[0], img_channels, img_rows, img_cols)
      
     X_train = X_train.astype('float32')
     X_test = X_test.astype('float32')

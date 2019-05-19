@@ -38,8 +38,9 @@ bkgrndSubMode = False
 mask = 0
 bkgrnd = 0
 counter = 0
+image_idx = 0
 # This parameter controls number of image samples to be taken PER gesture
-numOfSamples = 301
+numOfSamples = 400 * 5
 gestname = ""
 path = ""
 mod = 0
@@ -52,24 +53,27 @@ banner =  '''\nWhat would you like to do ?
     '''
 
 
-#%%
 def saveROIImg(img):
-    global counter, gestname, path, saveImg
+    global counter, gestname, path, saveImg, image_idx
     if counter > (numOfSamples - 1):
         # Reset the parameters
         saveImg = False
         gestname = ''
         counter = 0
+        image_idx = 0
         return
     
-    counter = counter + 1
-    name = gestname + str(counter)
-    print("Saving img:",name)
-    cv2.imwrite(path+name + ".png", img)
-    time.sleep(0.04 )
+    counter += 1
+    if counter % 5 == 0:
+        name = gestname + str(image_idx)
+        print("counter: {}, saving img:{}".format(counter, name))
+        cv2.imwrite(os.path.join(path, "{}.png".format(name)), img)
+        image_idx += 1
+    else:
+        print("counter: {}, escape".format(counter))
+    time.sleep(0.02)
 
 
-#%%
 def skinMask(frame, x0, y0, width, height, framecount, plot):
     global guessGesture, visualize, mod, lastgesture, saveImg
     # HSV values
@@ -203,7 +207,7 @@ def Main():
         
     #Call CNN model loading callback
     while True:
-        ans = int(input( banner))
+        ans = int(input(banner))
         if ans == 2:
             mod = myNN.loadCNN(-1)
             myNN.trainModel(mod)

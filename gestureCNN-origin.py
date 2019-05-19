@@ -6,11 +6,9 @@ Created on Thu Apr  6 01:01:43 2017
 @author: abhisheksingh
 """
 
-from keras.models import Sequential, Model
-from keras.layers import Dense, Dropout, Activation, Flatten, Input, add
-from keras.layers import Conv2D, MaxPooling2D, ZeroPadding2D, GlobalAveragePooling2D
-from keras.callbacks import History, ModelCheckpoint
-from keras.applications.mobilenet_v2 import MobileNetV2
+from keras.models import Sequential
+from keras.layers import Dense, Dropout, Activation, Flatten
+from keras.layers import Conv2D, MaxPooling2D, ZeroPadding2D
 from keras.optimizers import SGD,RMSprop,adam
 from keras.utils import np_utils
 
@@ -27,9 +25,9 @@ else:
 	I didnt spend much time on this behavior, but if someone has answer to this then please do comment and let me know.
     ValueError: Negative dimension size caused by subtracting 3 from 1 for 'conv2d_1/convolution' (op: 'Conv2D') with input shapes: [?,1,200,200], [3,3,200,32].
 '''
-# K.set_image_dim_ordering('th')
-K.set_image_dim_ordering('tf')  # channels_last
-
+K.set_image_dim_ordering('th')
+	
+	
 import numpy as np
 #import matplotlib.pyplot as plt
 import os
@@ -46,20 +44,23 @@ import matplotlib
 from matplotlib import pyplot as plt
 
 # input image dimensions
-samples_per_class = 400
-# img_rows, img_cols = 200, 200
-img_rows, img_cols = 224, 224
+img_rows, img_cols = 200, 200
 
 # number of channels
 # For grayscale use 1 value and for color images use 3 (R,G,B channels)
-# img_channels = 1
-img_channels = 3
+img_channels = 1
+
 
 # Batch_size to train
 batch_size = 32
 
+## Number of output classes (change it accordingly)
+## eg: In my case I wanted to predict 4 types of gestures (Ok, Peace, Punch, Stop)
+## NOTE: If you change this then dont forget to change Labels accordingly
+nb_classes = 5
+
 # Number of epochs to train (change it accordingly)
-nb_epoch = 25
+nb_epoch = 15  #25
 
 # Total number of convolutional filters to use
 nb_filters = 32
@@ -74,20 +75,13 @@ path = "./"
 path1 = "./gestures"    #path of folder of images
 
 ## Path2 is the folder which is fed in to training model
-path2 = './imgfolder'
+path2 = './imgfolder_b'
 
 WeightFileName = ["ori_4015imgs_weights.hdf5","bw_4015imgs_weights.hdf5","bw_2510imgs_weights.hdf5","./bw_weight.hdf5","./final_c_weights.hdf5","./semiVgg_1_weights.hdf5","/new_wt_dropout20.hdf5","./weights-CNN-gesture_skinmask.hdf5"]
 
 # outputs
-# output = ["OK", "NOTHING","PEACE", "PUNCH", "STOP"]
-class_labels = ["one_left", "two_left", "three_left", "four_left", "five_left", "ok_left", "fist_left", \
-          "one_right", "two_right", "three_right", "four_right", "five_right", "ok_right", "fist_right", \
-          "nothing"]
-
-## Number of output classes (change it accordingly)
-## eg: In my case I wanted to predict 4 types of gestures (Ok, Peace, Punch, Stop)
-## NOTE: If you change this then dont forget to change Labels accordingly
-nb_classes = len(class_labels)
+output = ["OK", "NOTHING","PEACE", "PUNCH", "STOP"]
+#output = ["PEACE", "STOP", "THUMBSDOWN", "THUMBSUP"]
 
 jsonarray = {}
 
@@ -112,6 +106,9 @@ def update(plot):
 
     return plot
 
+
+
+#%%
 # This function can be used for converting colored img to Grayscale img
 # while copying images from path1 to path2
 def convertToGrayImg(path1, path2):
@@ -124,6 +121,7 @@ def convertToGrayImg(path1, path2):
         grayimg = img.convert('L')
         grayimg.save(path2 + '/' +  file, "PNG")
 
+#%%
 def modlistdir(path):
     listing = os.listdir(path)
     retlist = []
@@ -134,27 +132,65 @@ def modlistdir(path):
         retlist.append(name)
     return retlist
 
-def residual_block(block_input, output_channel=64, kernel_size=(3, 3)):
-    conv_1 = Conv2D(output_channel, (3, 3), padding='same', activation='relu')(block_input)
-    conv_2 = Conv2D(output_channel, (3, 3), padding='same')(conv_1)
-    res_add = add([conv_2, block_input])
-    res_output = Activation('relu')(res_add)
-    return res_output
 
 # Load CNN model
 def loadCNN(wf_index):
     global get_output
-    # mobilenet_output = MobileNetV2(input_shape=(img_channels, img_rows, img_cols), include_top=False, weights='imagenet', pooling='avg')
-    model_input = Input(shape=(img_rows, img_cols, img_channels))
-    # mobilenet_output = MobileNetV2(input_shape=(img_rows, img_cols, img_channels), include_top=False, weights='imagenet', pooling='avg')
-    # mobilenet_output = MobileNetV2(input_shape=(img_rows, img_cols, img_channels), input_tensor=model_input, include_top=False, weights='imagenet', pooling='avg')
-    mobilenet_output = MobileNetV2(input_tensor=model_input, include_top=False, weights='imagenet', pooling='avg')
-    print('mobilenet lastlayer output: {}'.format(mobilenet_output.layers[-1].output))
-    output = Dense(nb_classes, activation='softmax')(mobilenet_output.layers[-1].output)
+    model = Sequential()
+    
+    
+    model.add(Conv2D(nb_filters, (nb_conv, nb_conv),
+                        padding='valid',
+                        input_shape=(img_channels, img_rows, img_cols)))
+    convout1 = Activation('relu')
+    model.add(convout1)
+    model.add(Conv2D(nb_filters, (nb_conv, nb_conv)))
+    convout2 = Activation('relu')
+    model.add(convout2)
+    model.add(MaxPooling2D(pool_size=(nb_pool, nb_pool)))
+    model.add(Dropout(0.5))
 
+    model.add(Flatten())
+    model.add(Dense(128))
+    model.add(Activation('relu'))
+    model.add(Dropout(0.5))
+    model.add(Dense(nb_classes))
+    model.add(Activation('softmax'))
+    
+    '''
+    
+    model.add(ZeroPadding2D((1,1),input_shape=(img_channels, img_rows, img_cols)))
+    model.add(Conv2D(nb_filters , (nb_conv, nb_conv), activation='relu'))
+    #model.add(ZeroPadding2D((1,1)))
+    #model.add(Conv2D(nb_filters , (nb_conv, nb_conv), activation='relu'))
+    model.add(MaxPooling2D(pool_size=(nb_pool, nb_pool)))
+    model.add(Dropout(0.2))
+    
+    #model.add(ZeroPadding2D((1,1)))
+    model.add(Conv2D(nb_filters , (nb_conv, nb_conv), activation='relu'))
+    #model.add(ZeroPadding2D((1,1)))
+    model.add(MaxPooling2D(pool_size=(nb_pool, nb_pool)))
+    ##
+    #model.add(Conv2D(nb_filters , (nb_conv, nb_conv), activation='relu'))
+    #model.add(MaxPooling2D(pool_size=(nb_pool, nb_pool), strides=(2,2)))
+    
+    model.add(Dropout(0.3))
+    model.add(Flatten())
+    ###
+    #model.add(Dense(128))
+    #model.add(Activation('relu'))
+    #model.add(Dropout(0.5))
+
+    model.add(Dense(256))
+    model.add(Activation('relu'))
+    model.add(Dropout(0.5))
+    model.add(Dense(nb_classes))
+    model.add(Activation('softmax'))
+    '''
+    
     #sgd = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
-    model = Model(inputs=model_input, outputs=output)
     model.compile(loss='categorical_crossentropy', optimizer='adadelta', metrics=['accuracy'])
+    
     
     # Model summary
     model.summary()
@@ -171,7 +207,7 @@ def loadCNN(wf_index):
         print("loading ", fname)
         model.load_weights(fname)
     
-    layer = model.layers[-1]
+    layer = model.layers[11]
     get_output = K.function([model.layers[0].input, K.learning_phase()], [layer.output,])
     
     
@@ -205,7 +241,7 @@ def guessGesture(model, img):
     
     d = {}
     i = 0
-    for items in class_labels:
+    for items in output:
         d[items] = prob_array[0][i] * 100
         i += 1
     
@@ -226,27 +262,26 @@ def guessGesture(model, img):
         #    json.dump(d, outfile)
         jsonarray = d
                 
-        return class_labels.index(guess)
+        return output.index(guess)
 
     else:
         return 1
 
 #%%
 def initializers():
-    # imlist = modlistdir(path2)
-    imlist = ['{}{}.png'.format(lb, idx) for lb in class_labels for idx in range(samples_per_class)]
-    print('imlist: {}'.format(imlist))
+    imlist = modlistdir(path2)
     
-    image1 = np.array(Image.open(os.path.join(path2, imlist[0]))) # open one image to get size
+    image1 = np.array(Image.open(path2 +'/' + imlist[0])) # open one image to get size
+    #plt.imshow(im1)
     
-    m, n = image1.shape[0:2] # get the size of the images
+    m,n = image1.shape[0:2] # get the size of the images
     total_images = len(imlist) # get the 'total' number of images
-    # class_labels
     
     # create matrix to store all flattened images
-    # immatrix = np.array([np.array(Image.open(path2+ '/' + images).convert('L')).flatten()
-    # immatrix = np.array([np.array(Image.open(os.path.join(path2, images)).convert('RGB')).flatten() for images in sorted(imlist)], dtype='f')
-    immatrix = np.array([np.array(Image.open(os.path.join(path2, images)).convert('RGB').resize((img_rows, img_cols))).flatten() for images in imlist], dtype='f')
+    immatrix = np.array([np.array(Image.open(path2+ '/' + images).convert('L')).flatten()
+                         for images in sorted(imlist)], dtype = 'f')
+    
+
     
     print(immatrix.shape)
     
@@ -255,13 +290,13 @@ def initializers():
     #########################################################
     ## Label the set of images per respective gesture type.
     ##
-    label = np.ones((total_images,), dtype=int)
+    label=np.ones((total_images,),dtype = int)
     
-    # samples_per_class = int(total_images / nb_classes)
-    print("samples_per_class - ", samples_per_class)
+    samples_per_class = int(total_images / nb_classes)
+    print("samples_per_class - ",samples_per_class)
     s = 0
-    r = int(samples_per_class)
-    for classIndex in range(len(class_labels)):
+    r = samples_per_class
+    for classIndex in range(nb_classes):
         label[s:r] = classIndex
         s = r
         r = s + samples_per_class
@@ -274,19 +309,18 @@ def initializers():
     label[903:]=3
     '''
     
-    data, Label = shuffle(immatrix, label, random_state=2)
-    train_data = [data, Label]
+    data,Label = shuffle(immatrix,label, random_state=2)
+    train_data = [data,Label]
      
-    (X, y) = (train_data[0], train_data[1])
+    (X, y) = (train_data[0],train_data[1])
+     
      
     # Split X and y into training and testing sets
      
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=4)
      
-    # X_train = X_train.reshape(X_train.shape[0], img_channels, img_rows, img_cols)
-    # X_test = X_test.reshape(X_test.shape[0], img_channels, img_rows, img_cols)
-    X_train = X_train.reshape(X_train.shape[0], img_rows, img_cols, img_channels)
-    X_test = X_test.reshape(X_test.shape[0], img_rows, img_cols, img_channels)
+    X_train = X_train.reshape(X_train.shape[0], img_channels, img_rows, img_cols)
+    X_test = X_test.reshape(X_test.shape[0], img_channels, img_rows, img_cols)
      
     X_train = X_train.astype('float32')
     X_test = X_test.astype('float32')
@@ -300,19 +334,16 @@ def initializers():
     Y_test = np_utils.to_categorical(y_test, nb_classes)
     return X_train, X_test, Y_train, Y_test
 
+
+
 def trainModel(model):
 
     # Split X and y into training and testing sets
     X_train, X_test, Y_train, Y_test = initializers()
 
-    print('shapes: xtrain: {} | xtest: {} | ytrain: {}, ytest: {}'.format(X_train.shape, X_test.shape, Y_train.shape, Y_test.shape))
     # Now start the training of the loaded model
-    if not os.path.exists('checkpoint'):
-        os.makedirs('checkpoint')
-    checkpointer = ModelCheckpoint(filepath=os.path.join('checkpoint', 'weights.{epoch:02d}.hdf5'), verbose=1, save_weights_only=True)
-    hist_recorder = History()
-
-    hist = model.fit(X_train, Y_train, batch_size=batch_size, epochs=nb_epoch, verbose=1, validation_split=0.2, callbacks=[checkpointer, hist_recorder])
+    hist = model.fit(X_train, Y_train, batch_size=batch_size, epochs=nb_epoch,
+                 verbose=1, validation_split=0.2)
 
     visualizeHis(hist)
 
@@ -437,5 +468,4 @@ def visualizeLayer(model, img, input_image, layerIndex):
         #plt.close(fig)
     else:
         print("Can't dump data of this layer{}- {}".format(layerIndex, layer.__class__.__name__))
-
 
