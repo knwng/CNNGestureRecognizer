@@ -94,3 +94,5 @@ imgfolder/
 venv_gesture/
 *.tar.bz2
 *.hdf5
+.DS_Store
+data/

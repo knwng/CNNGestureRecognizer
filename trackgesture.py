@@ -19,8 +19,10 @@ minValue = 70
 
 x0 = 400
 y0 = 200
-height = 200
-width = 200
+# height = 200
+# width = 200
+height = 224
+width = 224
 
 saveImg = False
 guessGesture = False
@@ -76,11 +78,12 @@ def saveROIImg(img):
 
 def skinMask(frame, x0, y0, width, height, framecount, plot):
     global guessGesture, visualize, mod, lastgesture, saveImg
+    # print('frame shape: {}'.format(np.array(frame).shape))
     # HSV values
     low_range = np.array([0, 50, 80])
     upper_range = np.array([30, 200, 255])
     
-    cv2.rectangle(frame, (x0,y0),(x0+width,y0+height),(0,255,0),1)
+    cv2.rectangle(frame, (x0, y0),(x0 + width, y0 + height),(0, 255, 0), 1)
     #roi = cv2.UMat(frame[y0:y0+height, x0:x0+width])
     roi = frame[y0:y0+height, x0:x0+width]
     
@@ -97,8 +100,9 @@ def skinMask(frame, x0, y0, width, height, framecount, plot):
     
     #bitwise and mask original frame
     res = cv2.bitwise_and(roi, roi, mask = mask)
+    # print('res shape: {}'.format(np.array(res).shape))
     # color to grayscale
-    res = cv2.cvtColor(res, cv2.COLOR_BGR2GRAY)
+    # res = cv2.cvtColor(res, cv2.COLOR_BGR2GRAY)
     
     if saveImg == True:
         saveROIImg(res)
@@ -114,8 +118,6 @@ def skinMask(frame, x0, y0, width, height, framecount, plot):
     
     return res
 
-
-#%%
 def binaryMask(frame, x0, y0, width, height, framecount, plot ):
     global guessGesture, visualize, mod, lastgesture, saveImg
     
@@ -229,7 +231,6 @@ def Main():
             myNN.visualizeLayers(mod, img, layer)
             input("Press any key to continue")
             continue
-        
         else:
             print("Get out of here!!!")
             return 0
@@ -239,21 +240,21 @@ def Main():
     cv2.namedWindow('Original', cv2.WINDOW_NORMAL)
 
     # set rt size as 640x480
-    ret = cap.set(3,640)
-    ret = cap.set(4,480)
+    ret = cap.set(3, 640)
+    ret = cap.set(4, 480)
 
     framecount = 0
     fps = ""
     start = time.time()
 
-    plot = np.zeros((512,512,3), np.uint8)
+    plot = np.zeros((512, 512, 3), np.uint8)
     
     while(True):
         ret, frame = cap.read()
         max_area = 0
         
         frame = cv2.flip(frame, 3)
-        frame = cv2.resize(frame, (640,480))
+        frame = cv2.resize(frame, (640, 480))
                       
         if ret == True:
             if bkgrndSubMode == True:
@@ -291,10 +292,11 @@ def Main():
             cv2.imshow('ROI', roi)
 
             if guessGesture == True:
-                plot = np.zeros((512,512,3), np.uint8)
+                # plot = np.zeros((512, 512, 3), np.uint8)
+                plot = np.zeros((800, 512, 3), np.uint8)
                 plot = myNN.update(plot)
             
-            cv2.imshow('Gesture Probability',plot)
+            cv2.imshow('Gesture Probability', plot)
             #plot = np.zeros((512,512,3), np.uint8)
         
         ############## Keyboard inputs ##################

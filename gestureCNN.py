@@ -95,20 +95,21 @@ jsonarray = {}
 def update(plot):
     global jsonarray
     h = 450
-    y = 30
-    w = 45
+    y = 10
+    w = 15
     font = cv2.FONT_HERSHEY_SIMPLEX
 
     #plot = np.zeros((512,512,3), np.uint8)
     
     #array = {"OK": 65.79261422157288, "NOTHING": 0.7953541353344917, "PEACE": 5.33270463347435, "PUNCH": 0.038031660369597375, "STOP": 28.04129719734192}
+    # print('update info: {}'.format(jsonarray))
     
     for items in jsonarray:
         mul = (jsonarray[items]) / 100
         #mul = random.randint(1,100) / 100
-        cv2.line(plot,(0,y),(int(h * mul),y),(255,0,0),w)
-        cv2.putText(plot,items,(0,y+5), font , 0.7,(0,255,0),2,1)
-        y = y + w + 30
+        cv2.line(plot, (0, y), (int(h * mul), y), (255, 0, 0), w)
+        cv2.putText(plot, items, (0, y + 5), font, 0.7, (0, 255, 0), 2, 1)
+        y += w + 10
 
     return plot
 
@@ -181,19 +182,17 @@ def loadCNN(wf_index):
 def guessGesture(model, img):
     global output, get_output, jsonarray
     #Load image and flatten it
-    image = np.array(img).flatten()
+    # image = cv2.resize(img, (img_rows, img_cols))
     
     # reshape it
-    image = image.reshape(img_channels, img_rows,img_cols)
-    
-    # float32
-    image = image.astype('float32') 
+    # image = image.reshape(img_channels, img_rows, img_cols)
     
     # normalize it
-    image = image / 255
+    image = img / 255.
     
     # reshape for NN
-    rimage = image.reshape(1, img_channels, img_rows, img_cols)
+    rimage = np.expand_dims(image, 0)
+    # rimage = image.reshape(1, img_channels, img_rows, img_cols)
     
     # Now feed it to the NN, to fetch the predictions
     #index = model.predict_classes(rimage)
